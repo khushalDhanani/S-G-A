@@ -1,0 +1,11 @@
+{
+  "version": "0.2.0",
+  "configurations": [{
+    "name": "SAP Agent",
+    "type": "debugpy",
+    "request": "launch",
+    "module": "sap_agent.cli.main",
+    "console": "integratedTerminal",
+    "envFile": "${workspaceFolder}/.env"
+  }]
+}

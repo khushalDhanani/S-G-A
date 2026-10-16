@@ -1,0 +1,7 @@
+provider: ollama
+model: qwen3:14b
+demo: true
+max_tool_rounds: 10
+audit_log_path: logs/audit.jsonl
+gui:
+  bridge: fake

@@ -1,0 +1,10 @@
+services:
+  sap-agent:
+    build:
+      context: ..
+      dockerfile: deploy/docker/Dockerfile
+    env_file: ../.env
+    environment:
+      DEMO: "1"
+    volumes:
+      - ../logs:/app/logs

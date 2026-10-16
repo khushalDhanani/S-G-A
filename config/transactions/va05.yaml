@@ -1,0 +1,27 @@
+code: VA05
+module: SD
+tier: report
+description: List sales orders by document date.
+keywords:
+  - sales orders
+  - document date
+  - order list
+fields:
+  date_from:
+    label: Document Date
+    position: from
+    type: date
+    required: true
+  date_to:
+    label: Document Date
+    position: to
+    type: date
+    required: true
+  sales_org:
+    label: Sales Organization
+    position: value
+    type: text
+    required: false
+execute: vkey_8
+result_grid: grid
+max_rows: 50

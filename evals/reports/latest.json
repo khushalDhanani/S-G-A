@@ -1,0 +1,62 @@
+{
+  "timestamp": "2026-10-16T05:51:28.337183+00:00",
+  "passed": 5,
+  "total": 5,
+  "results": [
+    {
+      "question": "List 5 sales orders from 2020 and calculate the total amount",
+      "answer": "Queried 5 rows from API_SALES_ORDER_SRV. Totals by currency: RUB 900.00, USD 17,543.50.",
+      "expected_facts": [
+        "5 rows",
+        "RUB 900.00",
+        "USD 17,543.50"
+      ],
+      "missing_facts": [],
+      "passed": true
+    },
+    {
+      "question": "What is the total in RUB for the demo sales orders?",
+      "answer": "Queried 5 rows from API_SALES_ORDER_SRV. Totals by currency: RUB 900.00, USD 17,543.50.",
+      "expected_facts": [
+        "5 rows",
+        "RUB 900.00",
+        "USD 17,543.50"
+      ],
+      "missing_facts": [],
+      "passed": true
+    },
+    {
+      "question": "What is the total in USD for the demo sales orders?",
+      "answer": "Queried 5 rows from API_SALES_ORDER_SRV. Totals by currency: RUB 900.00, USD 17,543.50.",
+      "expected_facts": [
+        "5 rows",
+        "RUB 900.00",
+        "USD 17,543.50"
+      ],
+      "missing_facts": [],
+      "passed": true
+    },
+    {
+      "question": "List five sales orders and calculate the total by currency",
+      "answer": "Queried 5 rows from API_SALES_ORDER_SRV. Totals by currency: RUB 900.00, USD 17,543.50.",
+      "expected_facts": [
+        "5 rows",
+        "RUB 900.00",
+        "USD 17,543.50"
+      ],
+      "missing_facts": [],
+      "passed": true
+    },
+    {
+      "question": "For the 2020 demo sales orders, report the row count and totals by currency",
+      "answer": "Queried 5 rows from API_SALES_ORDER_SRV. Totals by currency: RUB 900.00, USD 17,543.50.",
+      "expected_facts": [
+        "5 rows",
+        "RUB 900.00",
+        "USD 17,543.50"
+      ],
+      "missing_facts": [],
+      "passed": true
+    }
+  ]
+}

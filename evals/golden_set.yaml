@@ -1,0 +1,10 @@
+- question: "List 5 sales orders from 2020 and calculate the total amount"
+  expected_facts: ["5 rows", "RUB 900.00", "USD 17,543.50"]
+- question: "What is the total in RUB for the demo sales orders?"
+  expected_facts: ["5 rows", "RUB 900.00", "USD 17,543.50"]
+- question: "What is the total in USD for the demo sales orders?"
+  expected_facts: ["5 rows", "RUB 900.00", "USD 17,543.50"]
+- question: "List five sales orders and calculate the total by currency"
+  expected_facts: ["5 rows", "RUB 900.00", "USD 17,543.50"]
+- question: "For the 2020 demo sales orders, report the row count and totals by currency"
+  expected_facts: ["5 rows", "RUB 900.00", "USD 17,543.50"]

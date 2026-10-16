@@ -1,0 +1,13 @@
+allowed_services:
+  - API_SALES_ORDER_SRV
+  - API_PURCHASEORDER_PROCESS_SRV
+allowed_transactions: [VA05, VA05N, VA03, ME23N, MM03]
+automatic_gui_tiers: [display, report]
+approval_gui_tiers: [write]
+allowed_write_tools: [gui_act]
+blocked_gui_operations: [save, post, delete]
+blocked_vkeys: [11]
+max_actions_per_call: 10
+max_gui_steps_per_session: 100
+max_rows: 50
+allowed_risk_levels: [read]
