@@ -18,6 +18,12 @@ def test_split_screen_handles_nonzero_origin_and_odd_width() -> None:
     }
 
 
-def test_java_bridge_startup_fails_before_gui_launch() -> None:
+def test_java_bridge_startup_fails_before_gui_launch(monkeypatch: pytest.MonkeyPatch) -> None:
+    from sap_agent.gui.java_bridge import JavaScriptBridge
+
+    def _fail_observe(_self: JavaScriptBridge) -> dict[str, object]:
+        raise RuntimeError("bridge offline")
+
+    monkeypatch.setattr(JavaScriptBridge, "observe", _fail_observe)
     with pytest.raises(RuntimeError, match="gui.bridge=java.*not ready"):
         ensure_java_bridge_ready(Settings(gui={"bridge": "java"}))

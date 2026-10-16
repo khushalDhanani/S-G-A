@@ -7,6 +7,7 @@ approval_gui_tiers: [write]
 allowed_write_tools: [gui_act]
 blocked_gui_operations: [save, post, delete]
 blocked_vkeys: [11]
+allowed_gui_field_ids: [document_date_from, document_date_to, sales_org]
 max_actions_per_call: 10
 max_gui_steps_per_session: 100
 max_rows: 50

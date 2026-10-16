@@ -119,6 +119,46 @@ def test_fake_gui_agent_flow_and_per_action_audit(tmp_path) -> None:
     assert "2020-01-01" not in audit_path.read_text()
 
 
+def test_mixed_batch_is_rejected_before_any_gui_action(tmp_path) -> None:
+    bridge = FakeGuiBridge()
+    snapshot = bridge.observe()["snapshot_id"]
+
+    class InvalidBatchLLM:
+        calls = 0
+
+        def chat(self, messages, tools):
+            del messages, tools
+            self.calls += 1
+            if self.calls == 1:
+                actions = [
+                    {"op": "open_tx", "transaction": "VA05"},
+                    {"op": "set_field", "target": "unapproved_field", "value": "secret"},
+                ]
+                return LLMResponse(
+                    tool_calls=[
+                        ToolCall(
+                            "mixed-1",
+                            "gui_act",
+                            json.dumps({"snapshot_id": snapshot, "actions": actions}),
+                        )
+                    ]
+                )
+            return LLMResponse(content="The action batch was denied.")
+
+    registry = ToolRegistry()
+    registry.register(make_gui_act_tool(bridge))
+    agent = Agent(
+        InvalidBatchLLM(),
+        registry,
+        ToolPolicy(ROOT / "config/tool_policy.yaml"),
+        AuditLog(tmp_path / "mixed-batch.jsonl"),
+        "Use GUI tools safely.",
+        max_tool_rounds=2,
+    )
+    assert agent.run("Try a mixed GUI batch") == "The action batch was denied."
+    assert bridge.observe()["transaction"] is None
+
+
 def test_gui_session_limit_persists_across_agent_runs(tmp_path) -> None:
     bridge = FakeGuiBridge()
     registry = ToolRegistry()

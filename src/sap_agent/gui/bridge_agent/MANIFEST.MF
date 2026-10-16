@@ -1,0 +1,5 @@
+Manifest-Version: 1.0
+Agent-Class: sap_agent.gui.bridge_agent.SapBridgeAgent
+Can-Redefine-Classes: true
+Can-Retransform-Classes: true
+

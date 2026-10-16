@@ -41,12 +41,11 @@ def test_fake_bridge_normalizes_sap_style_document_dates() -> None:
     assert len(grid["rows"]) == 3
 
 
-def test_gui_factory_defaults_to_fake_and_java_is_a_stub() -> None:
+def test_gui_factory_creates_fake_and_java_bridges() -> None:
     assert isinstance(create_gui_bridge(Settings()), FakeGuiBridge)
     java_bridge = create_gui_bridge(Settings(gui={"bridge": "java"}))
     assert isinstance(java_bridge, JavaScriptBridge)
-    with pytest.raises(NotImplementedError, match="Waiting for SAP GUI for Java recorded script"):
-        java_bridge.observe()
+    assert java_bridge.endpoint == "http://127.0.0.1:49221"
 
 
 def test_policy_rejects_non_allowed_transaction(gui_policy: ToolPolicy) -> None:

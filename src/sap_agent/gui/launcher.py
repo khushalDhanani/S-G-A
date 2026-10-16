@@ -28,15 +28,14 @@ def split_screen(
 
 
 def ensure_java_bridge_ready(settings: Settings) -> None:
-    """Fail before launching applications when the Java bridge is still a stub."""
+    """Validate that the Java bridge is operational before launching."""
     if settings.gui.bridge == "java":
         bridge = create_gui_bridge(settings)
         try:
             bridge.observe()
-        except NotImplementedError as exc:
+        except Exception as exc:
             raise RuntimeError(
-                "gui.bridge=java is configured, but SAP GUI for Java scripting is not ready. "
-                "Provide and review the recorded script before using the Java bridge."
+                f"gui.bridge=java is configured, but SAP GUI bridge is not ready: {exc}"
             ) from exc
 
 

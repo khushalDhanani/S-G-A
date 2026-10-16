@@ -10,3 +10,6 @@ build/
 dist/
 *.egg-info/
 logs/
+.coverage
+*.class
+scratch/

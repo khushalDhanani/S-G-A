@@ -23,6 +23,8 @@ from sap_agent.security.policy import ToolPolicy
 from sap_agent.settings import ROOT, load_settings
 from sap_agent.tools.base import Tool
 from sap_agent.tools.calculations import calc_totals
+from sap_agent.tools.gui_act import make_gui_act_tool
+from sap_agent.tools.gui_observe import make_gui_observe_tool
 from sap_agent.tools.purchase_orders import make_tool as make_purchase_tool
 from sap_agent.tools.registry import ToolRegistry
 from sap_agent.tools.sales_orders import make_tool as make_sales_tool
@@ -38,6 +40,8 @@ def build_agent() -> tuple[Agent, ODataClient]:
     registry.register(make_sales_tool(client))
     registry.register(make_purchase_tool(client))
     gui_bridge = create_gui_bridge(settings)
+    registry.register(make_gui_observe_tool(gui_bridge))
+    registry.register(make_gui_act_tool(gui_bridge))
     policy = ToolPolicy(ROOT / "config/tool_policy.yaml")
     audit_path = Path(settings.audit_log_path)
     if not audit_path.is_absolute():
@@ -45,7 +49,15 @@ def build_agent() -> tuple[Agent, ODataClient]:
     audit = AuditLog(audit_path)
     profiles = TransactionProfiles()
     registry.register(make_find_tool(profiles, policy))
-    registry.register(make_run_tool(gui_bridge, profiles, policy, audit))
+    registry.register(
+        make_run_tool(
+            gui_bridge,
+            profiles,
+            policy,
+            audit,
+            progress_callback=_print_transaction_progress,
+        )
+    )
     registry.register(
         Tool(
             "calc_totals",
@@ -108,7 +120,25 @@ def _run_prompt_loop(agent: Agent, client: ODataClient) -> None:
                 question = Prompt.ask("[bold green]You[/]")
             except (EOFError, KeyboardInterrupt):
                 break
-            if question.strip().lower() in {"exit", "quit"}:
+            answer = question.strip().lower()
+            if agent.pending_execution is not None:
+                if answer in {"yes", "y"}:
+                    try:
+                        result = agent.confirm_pending_execution()
+                        console.print(
+                            f"[bold blue]Assistant[/] {result['transaction']} returned "
+                            f"{result['count']} rows; result screen verified."
+                        )
+                    except Exception as exc:
+                        console.print(f"[bold blue]Assistant[/] Execution stopped: {exc}")
+                    continue
+                if answer in {"no", "n", "cancel"}:
+                    agent.cancel_pending_execution()
+                    console.print("[bold blue]Assistant[/] Execution cancelled; report not run.")
+                    continue
+                console.print("[bold blue]Assistant[/] Reply yes to execute or no to cancel.")
+                continue
+            if answer in {"exit", "quit"}:
                 break
             direct_result = run_direct_command(agent, question)
             if direct_result is not None:
@@ -148,10 +178,13 @@ def run_direct_command(agent: Agent, question: str) -> str | None:
             )
             return f"Transaction search failed: {exc}"
     if len(parts) < 2:
-        return "Usage: /run <CODE> key=value ..."
+        return "Usage: /run <CODE> key=value ... [--execute]"
     code = parts[1]
+    execute = "--execute" in parts[2:]
     params: dict[str, str] = {}
     for item in parts[2:]:
+        if item == "--execute":
+            continue
         if "=" not in item:
             return "Each transaction parameter must use key=value syntax."
         key, value = item.split("=", 1)
@@ -161,13 +194,14 @@ def run_direct_command(agent: Agent, question: str) -> str | None:
     tool = agent.registry.get("run_transaction")
     if tool is None:
         return "Transaction runner is unavailable."
-    planned_steps = len(params) + 2
+    planned_steps = len(params) + 1 + int(execute)
     previous_steps = agent.gui_steps
     try:
         agent.policy.check(tool, {"code": code, "params": params})
         result = tool.handler(
             code=code,
             params=params,
+            execute=execute,
             session_gui_steps=previous_steps,
             audit_session_id=agent.session_id,
         )
@@ -180,7 +214,10 @@ def run_direct_command(agent: Agent, question: str) -> str | None:
             result["count"],
             0,
         )
-        return f"{code.upper()} returned {result['count']} rows."
+        if result.get("pending_confirmation"):
+            agent.pending_execution = tool.handler
+            return f"{code.upper()} is prepared. Execute?"
+        return f"{code.upper()} fields filled and verified; report not executed."
     except Exception as exc:
         agent.audit.record(
             agent.session_id,
@@ -191,6 +228,16 @@ def run_direct_command(agent: Agent, question: str) -> str | None:
             0,
         )
         return f"{code.upper()} failed: {exc}"
+
+
+def _print_transaction_progress(outcome: dict[str, object]) -> None:
+    """Print verified runner progress without showing field values."""
+    phase = str(outcome.get("phase", "STEP"))
+    status = str(outcome.get("status", "unknown"))
+    detail = str(outcome.get("detail", ""))
+    step = outcome.get("step", "?")
+    duration = outcome.get("duration_ms", 0)
+    console.print(f"[dim][{step}] {phase}: {status} — {detail} ({duration} ms)[/]")
 
 
 if __name__ == "__main__":

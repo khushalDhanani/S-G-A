@@ -43,6 +43,7 @@ def test_generic_runner_returns_grid_rows_and_capped_columns() -> None:
         FakeGuiBridge(),
         profile,
         {"date_from": "2020-01-01", "date_to": "31.12.2020"},
+        execute=True,
     )
     assert result["count"] == 2
     assert result["total_count"] == 3
@@ -53,6 +54,114 @@ def test_generic_runner_returns_grid_rows_and_capped_columns() -> None:
         "net_amount",
         "currency",
     ]
+    assert result["executed"] is True
+    assert all(step["status"] in {"applied", "verified"} for step in result["steps"])
+    assert any(
+        step["phase"] == "VERIFY" and step["status"] == "verified"
+        for step in result["steps"]
+    )
+
+
+def test_runner_fill_only_verifies_fields_without_executing() -> None:
+    result = run_transaction(
+        FakeGuiBridge(),
+        TransactionProfiles().get_profile("VA05"),
+        {"date_from": "2020-01-01", "date_to": "31.12.2020"},
+    )
+    assert result["executed"] is False
+    assert result["count"] == 0
+    assert result["verified_fields"] == {
+        "date_from": "01.01.2020",
+        "date_to": "31.12.2020",
+    }
+    assert all(step["status"] in {"applied", "verified"} for step in result["steps"])
+    assert any(
+        step["phase"] == "VERIFY" and step["status"] == "verified"
+        for step in result["steps"]
+    )
+
+
+def test_runner_does_not_execute_when_only_filling() -> None:
+    class TrackingBridge(FakeGuiBridge):
+        actions = []
+
+        def act(self, snapshot_id, actions):
+            self.actions.extend(actions)
+            return super().act(snapshot_id, actions)
+
+    bridge = TrackingBridge()
+    result = run_transaction(
+        bridge,
+        TransactionProfiles().get_profile("VA05"),
+        {"date_from": "2020-01-01", "date_to": "2020-12-31"},
+    )
+    assert result["executed"] is False
+    assert not any(action["op"] in {"press", "vkey"} for action in bridge.actions)
+
+
+def test_runner_rejects_reversed_dates_before_touching_gui() -> None:
+    class TrackingBridge(FakeGuiBridge):
+        def __init__(self):
+            super().__init__()
+            self.actions = []
+
+        def act(self, snapshot_id, actions):
+            self.actions.extend(actions)
+            return super().act(snapshot_id, actions)
+
+    bridge = TrackingBridge()
+    with pytest.raises(ValueError, match="Start date"):
+        run_transaction(
+            bridge,
+            TransactionProfiles().get_profile("VA05"),
+            {"date_from": "31.12.2020", "date_to": "01.01.2020"},
+        )
+    assert bridge.actions == []
+
+
+def test_runner_refuses_to_replace_another_open_transaction() -> None:
+    class ExistingTransaction(FakeGuiBridge):
+        def __init__(self):
+            super().__init__()
+            self._transaction = "VA03"
+
+        def act(self, snapshot_id, actions):
+            raise AssertionError("The runner must not change the existing screen")
+
+    with pytest.raises(RuntimeError, match="refusing to replace"):
+        run_transaction(
+            ExistingTransaction(),
+            TransactionProfiles().get_profile("VA05"),
+            {"date_from": "2020-01-01", "date_to": "2020-12-31"},
+        )
+
+
+def test_runner_stops_before_execute_when_readback_differs() -> None:
+    class CorruptReadBack(FakeGuiBridge):
+        def __init__(self):
+            super().__init__()
+            self.actions = []
+
+        def act(self, snapshot_id, actions):
+            self.actions.extend(actions)
+            return super().act(snapshot_id, actions)
+
+        def observe(self):
+            state = super().observe()
+            for element in state["elements"]:
+                if element.get("id") == "document_date_from" and self._date_from:
+                    element["value"] = "02.01.2020"
+            return state
+
+    bridge = CorruptReadBack()
+    with pytest.raises(RuntimeError, match="did not retain"):
+        run_transaction(
+            bridge,
+            TransactionProfiles().get_profile("VA05"),
+            {"date_from": "2020-01-01", "date_to": "2020-12-31"},
+            execute=True,
+        )
+    assert not any(action["op"] == "vkey" for action in bridge.actions)
 
 
 @pytest.mark.parametrize("problem", ["popup", "error", "stale"])
@@ -71,11 +180,12 @@ def test_runner_stops_on_popup_status_error_and_stale_snapshot(problem: str) -> 
                 return {"error": "Stale snapshot_id; observe again."}
             return super().act(snapshot_id, actions)
 
-    with pytest.raises(RuntimeError, match="popup|Error|Stale snapshot_id"):
+    with pytest.raises(RuntimeError, match="popup|error|Stale snapshot"):
         run_transaction(
             ProblemBridge(),
             TransactionProfiles().get_profile("VA05"),
             {"date_from": "2020-01-01", "date_to": "2020-12-31"},
+            execute=True,
         )
 
 
@@ -102,5 +212,5 @@ def test_policy_denies_unknown_write_and_over_session_transactions(tmp_path: Pat
             session_gui_steps=98,
         )
     entries = [json.loads(line) for line in audit.path.read_text().splitlines()]
-    assert len(entries) == 4
+    assert len(entries) == 3
     assert all(entry["status"] == "denied" for entry in entries)
